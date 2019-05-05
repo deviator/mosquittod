@@ -16,11 +16,13 @@ int main(string[] args)
     {
         foreach (i; 0 .. 100)
         {
-            cli.publish(topic~format("/%d", i), format("msg %d", i), 1);
-            Thread.sleep(10.msecs);
+            cli.publish(topic, 1, format("msg %d", i));
+            cli.loop(); // need for handshake if qos!=0
+            Thread.sleep(20.msecs);
         }
         Thread.sleep(10.msecs);
-        cli.publish(topic, "halt", 1);
+        cli.publish(topic, 1, "halt");
+        cli.loop();
 
         return 0;
     }
@@ -29,7 +31,7 @@ int main(string[] args)
         bool run = true;
 
         // for test: mosquitto_pub -t mqtt/example -m "hello mqtt"
-        cli.subscribe(topic ~ "/+", 2, (const(ubyte)[] data)
+        cli.subscribe(topic, 2, (const(ubyte)[] data)
         {
             auto sdata = cast(const(char[]))data;
             writefln("get: %s", sdata);
