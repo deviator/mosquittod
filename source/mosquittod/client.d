@@ -158,14 +158,18 @@ public:
     ///
     void disconnect() { mosqCheck!mosquitto_disconnect(mosq); }
 
-    ///
-    int publish(string t, const(void)[] d, int qos=0, bool retain=false)
+    /// publish 
+    int publish(string topic, int qos, const(void)[] data, bool retain=false)
     {
         int mid;
-        mosqCheck!mosquitto_publish(mosq, &mid, toStringzBuf(t),
-                            cast(int)d.length, d.ptr, qos, retain);
+        mosqCheck!mosquitto_publish(mosq, &mid, toStringzBuf(topic),
+                            cast(int)data.length, data.ptr, qos, retain);
         return mid;
     }
+
+    /// ditto with qos=0
+    int publish(string topic, const(void)[] data, bool retain=false)
+    { return publish(topic, 0, data, retain); }
 
     /// you need copy message data in callback if requires
     void subscribe(string pattern, int qos, void delegate(const(char)[],
