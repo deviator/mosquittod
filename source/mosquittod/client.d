@@ -2,7 +2,8 @@ module mosquittod.client;
 
 import std.algorithm : map;
 import std.exception;
-import std.array : array;
+import std.array : array, Appender;
+import std.format : formattedWrite;
 import std.string;
 
 public import mosquittod.api;
@@ -31,36 +32,25 @@ protected:
     static struct Callback
     {
         string pattern;
-        void delegate(string, const(ubyte)[]) func;
         int qos;
+        void delegate(const(char)[], const(ubyte)[]) func;
     }
 
     Callback[] slist;
 
     bool _connected;
 
-public:
+    Appender!(char[])[] buffers;
 
-    struct Message
+    char* toStringzBuf(string str, size_t n=0)
     {
-        string topic;
-        const(ubyte)[] payload;
+        if (str == "") return null;
+        buffers[n].clear();
+        formattedWrite(buffers[n], "%s\0", str);
+        return buffers[n].data.ptr;
     }
 
-    struct Settings
-    {
-        string host = "127.0.0.1";
-        ushort port = 1883;
-        string clientId;
-        bool cleanSession = true;
-        int keepalive = 5;
-    }
-
-    Settings settings;
-
-    void delegate() onConnect;
-
-    extern(C) protected static
+    extern(C) static
     {
         void onConnectCallback(mosquitto_t mosq, void* cptr, int res)
         {
@@ -88,41 +78,57 @@ public:
                                 const mosquitto_message* msg)
         {
             auto cli = enforce(cast(MosquittoClient)cptr, "null cli");
-            cli.onMessage(Message(msg.topic.fromStringz.idup,
-                       cast(ubyte[])msg.payload[0..msg.payloadlen]));
+            cli.onMessage(msg.topic, cast(ubyte[])msg.payload[0..msg.payloadlen]);
         }
     }
 
-    protected void subscribeList()
+    void subscribeList()
     {
         foreach (cb; slist)
             mosqCheck!mosquitto_subscribe(mosq, null,
-                            cb.pattern.toStringz, cb.qos);
+                            toStringzBuf(cb.pattern), cb.qos);
     }
 
-    protected void onMessage(Message msg)
+    void onMessage(const char* topicZ, const(ubyte[]) payload)
     {
         foreach (cb; slist)
         {
             bool res;
-            mosqCheck!mosquitto_topic_matches_sub(
-                cb.pattern.toStringz, msg.topic.toStringz, &res);
-            if (res) cb.func(msg.topic, msg.payload);
+            auto patt = toStringzBuf(cb.pattern);
+            mosqCheck!mosquitto_topic_matches_sub(patt, topicZ, &res);
+            if (res) cb.func(topicZ.fromStringz(), payload);
         }
     }
 
+public:
+    ///
+    struct Settings
+    {
+        string host = "127.0.0.1";
+        ushort port = 1883;
+        string clientId;
+        bool cleanSession = true;
+        int keepalive = 5;
+    }
+
+    ///
+    Settings settings;
+
+    void delegate() onConnect;
+
+    ///
     this(Settings s=Settings.init)
     {
         import core.stdc.errno;
 
         initMosquittoLib();
 
+        buffers = new Appender!(char[])[](1); // for now need only 1 buffer
+        foreach (buf; buffers) buf.reserve(1024);
+
         settings = s;
 
-        auto clientIdStringz = s.clientId ?
-                           s.clientId.toStringz : null;
-
-        mosq = enforce(mosquitto_new(clientIdStringz,
+        mosq = enforce(mosquitto_new(toStringzBuf(s.clientId),
                         s.cleanSession, cast(void*)this),
                 format("error while create mosquitto: %d", errno));
 
@@ -132,44 +138,50 @@ public:
 
     ~this() { disconnect(); }
 
+    ///
     bool connected() const @property { return _connected; }
 
-    void loop() { mosqCheck!mosquitto_loop(mosq, 0, 1); }
+    ///
+    void loop(int timeoutMSecs=0)
+    { mosqCheck!mosquitto_loop(mosq, timeoutMSecs, 1); }
 
+    ///
     void connect()
     {
-        mosqCheck!mosquitto_connect(mosq,
-                settings.host.toStringz, settings.port,
-                settings.keepalive);
+        mosqCheck!mosquitto_connect(mosq, toStringzBuf(settings.host),
+                                    settings.port, settings.keepalive);
     }
 
+    ///
     void reconnect() { mosqCheck!mosquitto_reconnect(mosq); }
 
+    ///
     void disconnect() { mosqCheck!mosquitto_disconnect(mosq); }
 
-    int publish(string t, const(ubyte)[] d, int qos=0,
-                 bool retain=false)
+    ///
+    int publish(string t, const(void)[] d, int qos=0, bool retain=false)
     {
         int mid;
-        mosqCheck!mosquitto_publish(mosq, &mid, t.toStringz,
-        cast(int)d.length, d.ptr, qos, retain);
+        mosqCheck!mosquitto_publish(mosq, &mid, toStringzBuf(t),
+                            cast(int)d.length, d.ptr, qos, retain);
         return mid;
     }
 
-    void subscribe(string pattern, void delegate(string,
-                    const(ubyte)[]) cb, int qos)
+    /// you need copy message data in callback if requires
+    void subscribe(string pattern, int qos, void delegate(const(char)[],
+                    const(ubyte)[]) cb)
     {
-        slist ~= Callback(pattern, cb, qos);
+        slist ~= Callback(pattern, qos, cb);
         if (connected) mosqCheck!mosquitto_subscribe(mosq, null,
-                                        pattern.toStringz, qos);
+                                    toStringzBuf(pattern), qos);
     }
 
-    void subscribe(string pattern, void delegate(const(ubyte)[]) cb,
-                    int qos)
+    /// ditto
+    void subscribe(string pattern, int qos, void delegate(const(ubyte)[]) cb)
     {
-        slist ~= Callback(pattern,
-                    (string, const(ubyte)[] data){ cb(data); }, qos);
+        slist ~= Callback(pattern, qos,
+                    (const(char)[], const(ubyte)[] data){ cb(data); });
         if (connected) mosqCheck!mosquitto_subscribe(mosq, null,
-                                        pattern.toStringz, qos);
+                                    toStringzBuf(pattern), qos);
     }
 }
