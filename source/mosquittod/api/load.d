@@ -74,11 +74,9 @@ alias mosq_log_callback  = extern(C) void function(mosquitto_t, void*, int, cons
     bool mosquitto_want_write(mosquitto_t mosq) { mixin(rtLib); }
     int mosquitto_threaded_set(mosquitto_t mosq, bool threaded) { mixin(rtLib); }
     int mosquitto_opts_set(mosquitto_t mosq, MOSQ_OPT option, void* value) { mixin(rtLib); }
-    int mosquitto_tls_set(mosquitto_t mosq,
-                            const(char)* cafile,   const(char)* capath,
-                            const(char)* certfile, const(char)* keyfile,
-                            mosq_tls_callback pw_callback) { mixin(rtLib); }
-    int mosquitto_tls_insecure_set(mosquitto_t mosq, bool value) { mixin(rtLib); } int mosquitto_tls_opts_set(mosquitto_t mosq, int cert_reqs, const(char)* tls_version, const(char)* ciphers) { mixin(rtLib); }
+    int mosquitto_tls_set(mosquitto_t mosq, const(char)* cafile,   const(char)* capath, const(char)* certfile, const(char)* keyfile, mosq_tls_callback pw_callback) { mixin(rtLib); }
+    int mosquitto_tls_insecure_set(mosquitto_t mosq, bool value) { mixin(rtLib); }
+    int mosquitto_tls_opts_set(mosquitto_t mosq, int cert_reqs, const(char)* tls_version, const(char)* ciphers) { mixin(rtLib); }
     int mosquitto_tls_psk_set(mosquitto_t mosq, const(char)* psk, const(char)* identity,  const(char)* ciphers) { mixin(rtLib); }
     void mosquitto_connect_callback_set(mosquitto_t mosq, mosq_base_callback on_connect) { mixin(rtLib); }
     void mosquitto_disconnect_callback_set(mosquitto_t mosq, mosq_base_callback on_disconnect) { mixin(rtLib); }
@@ -87,8 +85,7 @@ alias mosq_log_callback  = extern(C) void function(mosquitto_t, void*, int, cons
     void mosquitto_subscribe_callback_set(mosquitto_t mosq, mosq_sub_callback on_subscribe) { mixin(rtLib); }
     void mosquitto_unsubscribe_callback_set(mosquitto_t mosq, mosq_base_callback on_unsubscribe) { mixin(rtLib); }
     void mosquitto_log_callback_set(mosquitto_t mosq, mosq_log_callback on_log) { mixin(rtLib); }
-    int mosquitto_reconnect_delay_set(mosquitto_t mosq, uint reconnect_delay, uint reconnect_delay_max,
-                                        bool reconnect_exponential_backoff) { mixin(rtLib); }
+    int mosquitto_reconnect_delay_set(mosquitto_t mosq, uint reconnect_delay, uint reconnect_delay_max, bool reconnect_exponential_backoff) { mixin(rtLib); }
     int mosquitto_max_inflight_messages_set(mosquitto_t mosq, uint max_inflight_messages) { mixin(rtLib); }
     void mosquitto_message_retry_set(mosquitto_t mosq, uint message_retry) { mixin(rtLib); }
     void mosquitto_user_data_set(mosquitto_t mosq, void* obj) { mixin(rtLib); }
