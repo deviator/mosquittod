@@ -1,0 +1,7 @@
+name "mosquittod"
+description "Dynamic mosquitto binding"
+authors "deviator"
+copyright "Copyright © 2019, deviator"
+license "MIT"
+
+dependency "ssll" path="../ssll"

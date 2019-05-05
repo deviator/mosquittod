@@ -1,0 +1,17 @@
+.dub
+docs.json
+__dummy.html
+docs/
+/mosquittod
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+mosquittod-test-*
+*.exe
+*.o
+*.obj
+*.lst
+dub.selections.json
+bin
