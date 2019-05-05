@@ -1,3 +1,4 @@
+///
 module mosquittod.client;
 
 import std.algorithm : map;
@@ -8,7 +9,14 @@ import std.string;
 
 public import mosquittod.api;
 
+///
 class MosquittoException : Exception
+{
+    this(string msg, string file=__FILE__, size_t line=__LINE__)
+    { super(msg, file, line); }
+}
+
+class MosquittoCallException : MosquittoException
 {
     MOSQ_ERR err;
     this(MOSQ_ERR err, string func)
@@ -21,9 +29,10 @@ class MosquittoException : Exception
 private void mosqCheck(alias fnc, Args...)(Args args)
 {
     if (auto r = cast(MOSQ_ERR)fnc(args))
-        throw new MosquittoException(r, __traits(identifier, fnc));
+        throw new MosquittoCallException(r, __traits(identifier, fnc));
 }
 
+///
 class MosquittoClient
 {
 protected:
@@ -33,7 +42,7 @@ protected:
     {
         string pattern;
         int qos;
-        void delegate(const(char)[], const(ubyte)[]) func;
+        void delegate(const(char)[], const(void)[]) func;
     }
 
     Callback[] slist;
@@ -54,7 +63,8 @@ protected:
     {
         void onConnectCallback(mosquitto_t mosq, void* cptr, int res)
         {
-            auto cli = enforce(cast(MosquittoClient)cptr, "null cli");
+            auto cli = enforce!MosquittoException(
+                            cast(MosquittoClient)cptr, "null cli");
             enum Res
             {
                 success = 0,
@@ -62,7 +72,8 @@ protected:
                 identifier_rejected = 2,
                 broker_unavailable = 3
             }
-            enforce(res == 0, format("connection error: %s", cast(Res)res));
+            enforce!MosquittoException(res == 0,
+                        format("connection error: %s", cast(Res)res));
             cli._connected = true;
             cli.subscribeList();
             if (cli.onConnect !is null) cli.onConnect();
@@ -70,15 +81,17 @@ protected:
 
         void onDisconnectCallback(mosquitto_t mosq, void* cptr, int res)
         {
-            auto cli = enforce(cast(MosquittoClient)cptr, "null cli");
+            auto cli = enforce!MosquittoException(
+                            cast(MosquittoClient)cptr, "null cli");
             cli._connected = false;
         }
 
         void onMessageCallback(mosquitto_t mosq, void* cptr,
                                 const mosquitto_message* msg)
         {
-            auto cli = enforce(cast(MosquittoClient)cptr, "null cli");
-            cli.onMessage(msg.topic, cast(ubyte[])msg.payload[0..msg.payloadlen]);
+            auto cli = enforce!MosquittoException(
+                            cast(MosquittoClient)cptr, "null cli");
+            cli.onMessage(msg.topic, msg.payload[0..msg.payloadlen]);
         }
     }
 
@@ -89,7 +102,7 @@ protected:
                             toStringzBuf(cb.pattern), cb.qos);
     }
 
-    void onMessage(const char* topicZ, const(ubyte[]) payload)
+    void onMessage(const char* topicZ, const(void[]) payload)
     {
         foreach (cb; slist)
         {
@@ -128,9 +141,10 @@ public:
 
         settings = s;
 
-        mosq = enforce(mosquitto_new(toStringzBuf(s.clientId),
-                        s.cleanSession, cast(void*)this),
-                format("error while create mosquitto: %d", errno));
+        mosq = enforce!MosquittoException(
+                    mosquitto_new(toStringzBuf(s.clientId),
+                                  s.cleanSession, cast(void*)this),
+                    format("error while create mosquitto: %d", errno));
 
         mosquitto_connect_callback_set(mosq, &onConnectCallback);
         mosquitto_message_callback_set(mosq, &onMessageCallback);
@@ -173,7 +187,7 @@ public:
 
     /// you need copy message data in callback if requires
     void subscribe(string pattern, int qos, void delegate(const(char)[],
-                    const(ubyte)[]) cb)
+                    const(void)[]) cb)
     {
         slist ~= Callback(pattern, qos, cb);
         if (connected) mosqCheck!mosquitto_subscribe(mosq, null,
@@ -181,10 +195,10 @@ public:
     }
 
     /// ditto
-    void subscribe(string pattern, int qos, void delegate(const(ubyte)[]) cb)
+    void subscribe(string pattern, int qos, void delegate(const(void)[]) cb)
     {
         slist ~= Callback(pattern, qos,
-                    (const(char)[], const(ubyte)[] data){ cb(data); });
+                    (const(char)[], const(void)[] data){ cb(data); });
         if (connected) mosqCheck!mosquitto_subscribe(mosq, null,
                                     toStringzBuf(pattern), qos);
     }

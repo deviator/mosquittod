@@ -31,7 +31,7 @@ int main(string[] args)
         bool run = true;
 
         // for test: mosquitto_pub -t mqtt/example -m "hello mqtt"
-        cli.subscribe(topic, 2, (const(ubyte)[] data)
+        cli.subscribe(topic, 2, (const(void)[] data)
         {
             auto sdata = cast(const(char[]))data;
             writefln("get: %s", sdata);
