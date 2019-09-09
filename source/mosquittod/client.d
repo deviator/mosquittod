@@ -16,6 +16,7 @@ class MosquittoException : Exception
     { super(msg, file, line); }
 }
 
+///
 class MosquittoCallException : MosquittoException
 {
     MOSQ_ERR err;
@@ -150,7 +151,7 @@ public:
         mosquitto_message_callback_set(mosq, &onMessageCallback);
     }
 
-    ~this() { disconnect(); }
+    ~this() { if (_connected) disconnect(); }
 
     ///
     bool connected() const @property { return _connected; }
