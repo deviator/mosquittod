@@ -1,6 +1,7 @@
 import std.stdio;
 import std.format : format;
 import core.thread;
+import std.getopt;
 
 import mosquittod;
 
@@ -8,7 +9,33 @@ int main(string[] args)
 {
     enum topic = "mqtt/example";
 
-    auto cli = new MosquittoClient();
+    string ipaddr = "127.0.0.1";
+
+    MosquittoClient.Settings sets;
+
+    getopt(args,
+        "p|port", &sets.port,
+        "h|host", &sets.host,
+    );
+
+    MosquittoClient cli;
+
+    try cli = new MosquittoClient(sets);
+    catch (Exception e)
+    {
+        version (Windows)
+        {
+            import core.sys.windows.winbase;
+            const err = GetLastError();
+        }
+        else
+        {
+            import core.stdc.errno;
+            const err = errno;
+        }
+        stderr.writeln("error while loading library: ", err);
+        return 1;
+    }
 
     cli.connect();
 
@@ -35,6 +62,7 @@ int main(string[] args)
         {
             auto sdata = cast(const(char[]))data;
             writefln("get: %s", sdata);
+            stdout.flush();
             if (sdata == "halt") run = false;
         });
 
