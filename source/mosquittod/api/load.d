@@ -7,7 +7,7 @@ import ssll;
 import std.exception : enforce;
 
 version (Posix)   private enum libNames = ["libmosquitto.so", "libmosquitto.so.1"];
-version (Windows) private enum libNames = ["libmosquitto.dll"];
+version (Windows) private enum libNames = ["mosquitto.dll"];
 
 private __gshared void* lib;
 
