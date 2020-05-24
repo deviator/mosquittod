@@ -1,3 +1,5 @@
 module mosquittod;
 
-public import mosquittod.client;
+public:
+import mosquittod.api;
+import mosquittod.types;

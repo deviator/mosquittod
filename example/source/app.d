@@ -4,6 +4,7 @@ import core.thread;
 import std.getopt;
 
 import mosquittod;
+import mosquittod.wrap;
 
 int main(string[] args)
 {
@@ -36,6 +37,11 @@ int main(string[] args)
         stderr.writeln("error while loading library: ", err);
         return 1;
     }
+
+    int major, minor, rev;
+    stderr.writeln(mosquitto_lib_version(&major, &minor, &rev));
+    stderr.writefln!"%d.%d.%d"(major, minor, rev);
+    stderr.writeln(mosquittoLibVersion());
 
     cli.connect();
 

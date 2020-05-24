@@ -1,5 +1,5 @@
 ///
-module mosquittod.client;
+module mosquittod.wrap;
 
 import std.algorithm : map;
 import std.exception;
@@ -7,7 +7,8 @@ import std.array : array, Appender;
 import std.format : formattedWrite;
 import std.string;
 
-public import mosquittod.api;
+import mosquittod.api;
+import mosquittod.types;
 
 ///
 class MosquittoException : Exception
@@ -23,7 +24,7 @@ class MosquittoCallException : MosquittoException
     this(MOSQ_ERR err, string func)
     {
         this.err = err;
-        super(format("%s returns %d (%s)", func, err, err));
+        super(format("fail '%s': %d (%s)", func, err, err));
     }
 }
 
@@ -37,7 +38,7 @@ private void mosqCheck(alias fnc, Args...)(Args args)
 class MosquittoClient
 {
 protected:
-    mosquitto_t mosq;
+    mosquitto* mosq;
 
     static struct Callback
     {
@@ -62,7 +63,7 @@ protected:
 
     extern(C) static
     {
-        void onConnectCallback(mosquitto_t mosq, void* cptr, int res)
+        void onConnectCallback(mosquitto* mosq, void* cptr, int res)
         {
             auto cli = enforce!MosquittoException(
                             cast(MosquittoClient)cptr, "null cli");
@@ -80,14 +81,14 @@ protected:
             if (cli.onConnect !is null) cli.onConnect();
         }
 
-        void onDisconnectCallback(mosquitto_t mosq, void* cptr, int res)
+        void onDisconnectCallback(mosquitto* mosq, void* cptr, int res)
         {
             auto cli = enforce!MosquittoException(
                             cast(MosquittoClient)cptr, "null cli");
             cli._connected = false;
         }
 
-        void onMessageCallback(mosquitto_t mosq, void* cptr,
+        void onMessageCallback(mosquitto* mosq, void* cptr,
                                 const mosquitto_message* msg)
         {
             auto cli = enforce!MosquittoException(
@@ -103,7 +104,7 @@ protected:
                             toStringzBuf(cb.pattern), cb.qos);
     }
 
-    void onMessage(const char* topicZ, const(void[]) payload)
+    void onMessage(const(char)* topicZ, const(void[]) payload)
     {
         foreach (cb; slist)
         {
